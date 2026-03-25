@@ -9,6 +9,16 @@
 
 <script lang="ts">
     import Button from "$lib/components/Button.svelte";
+
+    const backendUrl = import.meta.env.VITE_BACKEND;
+
+    function handleGoogleLogin() {
+        window.location.href = `${backendUrl}/auth/login/google`;
+    }
+
+    function handleDiscordLogin() {
+        window.location.href = `${backendUrl}/auth/login/discord`;
+    }
 </script>
 
 <style>
@@ -44,8 +54,8 @@
         <h1 class="gradient-text">Planq</h1>
         <h3 class="muted">Entrance Exam Prep. For Students, By Students</h3>
         <div class="btn-grp">
-            <Button size='sm'>Conitnue with Google</Button>
-            <Button variant='secondary' size='sm'>Conitnue with Discord</Button>
+            <Button size='sm' onclick={handleGoogleLogin}>Continue with Google</Button>
+            <Button variant='secondary' size='sm' onclick={handleDiscordLogin}>Continue with Discord</Button>
         </div>
     </div>
 </div>
