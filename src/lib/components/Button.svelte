@@ -6,10 +6,10 @@
     onclick?: (e: MouseEvent) => void;
   }
 
-  let { variant = 'primary', size = 'md', disabled = false, onclick }: Props = $props();
+  let { variant = 'primary', size = 'md', disabled = false, onclick, class: className = '' }: Props & { class?: string } = $props();
 </script>
 
-<button class={`btn btn-${variant} btn-${size}`} {disabled} {onclick}>
+<button class={`btn btn-${variant} btn-${size} ${className}`} {disabled} {onclick}>
   <slot />
 </button>
 
