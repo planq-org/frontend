@@ -1,232 +1,440 @@
 <svelte:head>
     <title>Dashboard - Planq</title>
-    <meta name="description" content="Your Planq Dashboard" />
+    <meta name="description" content="Daily exam prep dashboard for Planq students" />
 </svelte:head>
 
 <script lang="ts">
+    import type { PageData } from './$types';
     import Button from "$lib/components/Button.svelte";
-    import { onMount } from "svelte";
 
-    let user: any = null;
-    let isLoading = true;
+    let { data }: { data: PageData } = $props();
 
-    onMount(async () => {
-        // Fetch user data from the backend
-        try {
-            const response = await fetch('http://localhost:8080/api/me', {
-                credentials: 'include',
-            });
-            if (response.ok) {
-                user = await response.json();
-            }
-        } catch (error) {
-            console.error('Failed to fetch user:', error);
-        }
-        isLoading = false;
-    });
+    const user = $derived(data.user);
+    const points = $derived(user?.points ?? 0);
+    const testIds = $derived(user?.test_ids ?? []);
+    const testsTaken = $derived(testIds.length);
+    const avgPointsPerTest = $derived(testsTaken > 0 ? Math.round(points / testsTaken) : 0);
+    const completion = $derived(Math.min(100, 20 + testsTaken * 12 + Math.min(50, Math.floor(points / 10))));
+    const nextMilestone = $derived(points < 100 ? 100 : points < 250 ? 250 : points < 500 ? 500 : 1000);
+    const pointsToMilestone = $derived(Math.max(0, nextMilestone - points));
+    const dailyGoalTests = 2;
+    const dailyGoalProgress = $derived(Math.min(100, Math.round((testsTaken / dailyGoalTests) * 100)));
+
+    const todayLabel = new Intl.DateTimeFormat('en-US', {
+        weekday: 'long',
+        month: 'short',
+        day: 'numeric'
+    }).format(new Date());
+
+    const displayName = $derived(user?.username || user?.email || 'Student');
 
     function handleLogout() {
-        // Clear cookies and redirect to home
-        document.cookie = 'access_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-        document.cookie = 'refresh_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
         window.location.href = '/';
+    }
+
+    function formatJoinDate(value: string | undefined): string {
+        if (!value) {
+            return 'Unknown';
+        }
+
+        const date = new Date(value);
+
+        if (Number.isNaN(date.getTime())) {
+            return 'Unknown';
+        }
+
+        return new Intl.DateTimeFormat('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric',
+        }).format(date);
     }
 </script>
 
 <style>
-    .dashboard {
+    .page {
         min-height: 100vh;
-        padding: 2rem;
+        padding: 1.25rem;
     }
 
-    .header {
+    .dashboard {
+        width: min(1080px, 100%);
+        margin: 0 auto;
+        display: grid;
+        gap: 1rem;
+    }
+
+    .panel {
+        border: 1px solid color-mix(in srgb, var(--border-color) 75%, white 25%);
+        background: linear-gradient(180deg, rgba(27, 31, 37, 0.96), rgba(24, 28, 33, 0.96));
+        border-radius: 1rem;
+        box-shadow: 0 10px 22px rgba(0, 0, 0, 0.15);
+    }
+
+    .topbar {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 3rem;
-        padding-bottom: 2rem;
-        border-bottom: 1px solid var(--border-color);
-    }
-
-    .header-content h1 {
-        font-weight: 700;
-        font-size: 2.5rem;
-        margin-bottom: 0.5rem;
-    }
-
-    .header-content p {
-        color: var(--text-secondary);
-        font-size: 1rem;
-    }
-
-    .user-info {
-        text-align: right;
-    }
-
-    .user-name {
-        font-weight: 600;
-        font-size: 1.1rem;
-        margin-bottom: 0.5rem;
-    }
-
-    .user-email {
-        color: var(--text-secondary);
-        font-size: 0.9rem;
-        margin-bottom: 1rem;
-    }
-
-    .content {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-        gap: 2rem;
-    }
-
-    .card {
-        background-color: var(--bg-secondary);
-        border: 1px solid var(--border-color);
-        border-radius: var(--radius-lg);
-        padding: 2rem;
-        box-shadow: var(--shadow-md);
-        transition: all var(--transition-normal);
-    }
-
-    .card:hover {
-        border-color: var(--accent-primary);
-        box-shadow: var(--shadow-lg);
-    }
-
-    .card h3 {
-        font-weight: 600;
-        font-size: 1.25rem;
-        margin-bottom: 1rem;
-        color: var(--accent-primary);
-    }
-
-    .card p {
-        color: var(--text-secondary);
-        margin-bottom: 1.5rem;
-        line-height: 1.6;
-    }
-
-    .loading {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        min-height: 50vh;
-        color: var(--text-secondary);
-        font-size: 1.1rem;
-    }
-
-    .stats {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
         gap: 1rem;
-        margin-bottom: 2rem;
+        padding: 0.9rem 1rem;
+        animation: fadeUp 280ms ease-out;
     }
 
-    .stat-box {
-        background-color: var(--bg-secondary);
-        border: 1px solid var(--border-color);
-        border-radius: var(--radius-lg);
-        padding: 1.5rem;
-        text-align: center;
+    .topbar-left h1 {
+        font-size: clamp(1.2rem, 2vw, 1.55rem);
+        letter-spacing: -0.02em;
+        margin-bottom: 0.15rem;
     }
 
-    .stat-value {
-        font-size: 2rem;
+    .subtle {
+        color: var(--text-secondary);
+        font-size: 0.88rem;
+    }
+
+    .hero {
+        display: grid;
+        grid-template-columns: 1.25fr 1fr;
+        gap: 0.9rem;
+        animation: fadeUp 360ms ease-out;
+    }
+
+    .hero-main,
+    .hero-side {
+        padding: 1.1rem;
+    }
+
+    .label {
+        display: inline-flex;
+        align-items: center;
+        border: 1px solid rgba(107, 138, 253, 0.35);
+        border-radius: 999px;
+        color: #b9c7ff;
+        font-size: 0.72rem;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        padding: 0.3rem 0.55rem;
+        margin-bottom: 0.7rem;
+    }
+
+    .hero-main h2 {
+        font-size: clamp(1.4rem, 2.6vw, 1.95rem);
+        line-height: 1.15;
+        letter-spacing: -0.02em;
+        margin-bottom: 0.55rem;
+    }
+
+    .hero-main p {
+        color: var(--text-secondary);
+        max-width: 58ch;
+        margin-bottom: 0.9rem;
+    }
+
+    .action-row {
+        display: flex;
+        gap: 0.65rem;
+        flex-wrap: wrap;
+    }
+
+    .hero-side {
+        display: grid;
+        align-content: space-between;
+        gap: 0.9rem;
+    }
+
+    .goal {
+        border: 1px solid rgba(129, 199, 132, 0.26);
+        border-radius: 0.75rem;
+        padding: 0.85rem;
+        background: rgba(129, 199, 132, 0.06);
+    }
+
+    .goal-title {
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: #bad9bb;
+        margin-bottom: 0.4rem;
+    }
+
+    .goal-value {
+        font-size: 1.3rem;
         font-weight: 700;
-        background: linear-gradient(to right, var(--accent-primary), var(--accent-secondary));
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-        margin-bottom: 0.5rem;
+        letter-spacing: -0.02em;
     }
 
-    .stat-label {
+    .metrics {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 0.75rem;
+        animation: fadeUp 440ms ease-out;
+    }
+
+    .metric {
+        padding: 0.85rem;
+    }
+
+    .metric dt {
+        color: var(--text-tertiary);
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        margin-bottom: 0.4rem;
+    }
+
+    .metric dd {
+        font-size: clamp(1.05rem, 1.9vw, 1.45rem);
+        font-weight: 700;
+        letter-spacing: -0.02em;
+    }
+
+    .main {
+        display: grid;
+        grid-template-columns: 1.45fr 1fr;
+        gap: 0.75rem;
+        animation: fadeUp 520ms ease-out;
+    }
+
+    .section {
+        padding: 1rem;
+    }
+
+    .section h3 {
+        font-size: 1rem;
+        margin-bottom: 0.75rem;
+    }
+
+    .list {
+        list-style: none;
+        display: grid;
+        gap: 0.6rem;
+    }
+
+    .list li {
+        border: 1px solid rgba(107, 138, 253, 0.2);
+        border-radius: 0.7rem;
+        padding: 0.65rem 0.75rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.8rem;
+        background: rgba(107, 138, 253, 0.05);
+    }
+
+    .chip {
+        font-size: 0.73rem;
+        color: #b8c5fa;
+        background: rgba(107, 138, 253, 0.2);
+        border-radius: 999px;
+        padding: 0.2rem 0.48rem;
+        flex-shrink: 0;
+    }
+
+    .empty {
+        border: 1px dashed var(--border-color);
+        border-radius: 0.7rem;
+        padding: 0.8rem;
         color: var(--text-secondary);
         font-size: 0.9rem;
+    }
+
+    .progress-label {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        margin-bottom: 0.42rem;
+        color: var(--text-secondary);
+        font-size: 0.85rem;
+    }
+
+    .track {
+        width: 100%;
+        height: 0.56rem;
+        background: rgba(120, 125, 133, 0.23);
+        border-radius: 999px;
+        overflow: hidden;
+        margin-bottom: 0.8rem;
+    }
+
+    .fill {
+        height: 100%;
+        width: 0;
+        border-radius: inherit;
+        background: linear-gradient(90deg, #6b8afd, #7bcba0);
+        transition: width 360ms ease;
+    }
+
+    .account p {
+        font-size: 0.9rem;
+        color: var(--text-secondary);
+        margin-bottom: 0.38rem;
+        word-break: break-word;
+    }
+
+    .error {
+        border: 1px solid rgba(229, 115, 115, 0.45);
+        background: rgba(229, 115, 115, 0.08);
+        color: #f1c3c3;
+        border-radius: 0.75rem;
+        padding: 0.75rem 0.9rem;
+        font-size: 0.88rem;
+    }
+
+    @keyframes fadeUp {
+        from {
+            opacity: 0;
+            transform: translateY(6px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @media (max-width: 920px) {
+        .hero,
+        .main {
+            grid-template-columns: 1fr;
+        }
+
+        .metrics {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+
+    @media (max-width: 640px) {
+        .page {
+            padding: 0.75rem;
+        }
+
+        .topbar {
+            align-items: flex-start;
+            flex-direction: column;
+        }
+
+        .metrics {
+            grid-template-columns: 1fr;
+        }
     }
 </style>
 
-<div class="dashboard">
-    <div class="header">
-        <div class="header-content">
-            <h1 class="gradient-text">Planq</h1>
-            <p>Welcome back to your exam prep dashboard</p>
-        </div>
-        <div class="user-info">
-            {#if !isLoading && user}
-                <div class="user-name">{user.username || user.email}</div>
-                <div class="user-email">{user.email}</div>
-                <Button variant="secondary" size="sm" onclick={handleLogout}>Logout</Button>
-            {:else if isLoading}
-                <p class="muted">Loading...</p>
-            {:else}
-                <p class="muted">Not authenticated</p>
-            {/if}
-        </div>
+<div class="page">
+    <div class="dashboard">
+        <header class="panel topbar">
+            <div class="topbar-left">
+                <h1>{displayName}'s Study Space</h1>
+                <p class="subtle">{todayLabel} · consistent work beats cramming</p>
+            </div>
+            <Button variant="secondary" size="sm" onclick={handleLogout}>Back to Home</Button>
+        </header>
+
+        {#if data.apiError}
+            <div class="error">{data.apiError}</div>
+        {/if}
+
+        {#if user}
+            <section class="hero">
+                <article class="panel hero-main">
+                    <span class="label">Daily Focus</span>
+                    <h2>Build momentum with one strong practice session.</h2>
+                    <p>
+                        You have completed {testsTaken} tests and collected {points} points. Keep today's session short,
+                        focused, and review one weak topic after practice.
+                    </p>
+                    <div class="action-row">
+                        <Button size="sm">Start Practice</Button>
+                        <Button size="sm" variant="secondary">Review Mistakes</Button>
+                    </div>
+                </article>
+
+                <aside class="panel hero-side">
+                    <div class="goal">
+                        <p class="goal-title">Next Milestone</p>
+                        <p class="goal-value">{pointsToMilestone} points left</p>
+                        <p class="subtle">Target: {nextMilestone} points</p>
+                    </div>
+                    <div>
+                        <p class="subtle">Member since {formatJoinDate(user.created_at)}</p>
+                    </div>
+                </aside>
+            </section>
+
+            <dl class="metrics">
+                <div class="panel metric">
+                    <dt>Total Points</dt>
+                    <dd>{points}</dd>
+                </div>
+                <div class="panel metric">
+                    <dt>Tests Completed</dt>
+                    <dd>{testsTaken}</dd>
+                </div>
+                <div class="panel metric">
+                    <dt>Avg Points/Test</dt>
+                    <dd>{avgPointsPerTest}</dd>
+                </div>
+                <div class="panel metric">
+                    <dt>Readiness</dt>
+                    <dd>{completion}%</dd>
+                </div>
+            </dl>
+
+            <section class="main">
+                <article class="panel section">
+                    <h3>Today's Plan</h3>
+                    <ul class="list">
+                        <li>
+                            <span>Complete one timed practice set</span>
+                            <span class="chip">Priority</span>
+                        </li>
+                        <li>
+                            <span>Review your last test and note 3 mistakes</span>
+                            <span class="chip">Review</span>
+                        </li>
+                        <li>
+                            <span>Spend 20 minutes on weak concepts</span>
+                            <span class="chip">Concepts</span>
+                        </li>
+                    </ul>
+
+                    <h3 style="margin-top: 1rem;">Recent Test IDs</h3>
+                    {#if testsTaken > 0}
+                        <ul class="list">
+                            {#each testIds as testId, index}
+                                <li>
+                                    <span>Practice #{index + 1}: {testId}</span>
+                                    <span class="chip">Saved</span>
+                                </li>
+                            {/each}
+                        </ul>
+                    {:else}
+                        <div class="empty">No tests recorded yet. Start your first practice session to build your streak.</div>
+                    {/if}
+                </article>
+
+                <aside class="panel section">
+                    <h3>Consistency</h3>
+                    <div class="progress-label">
+                        <span>Daily practice goal</span>
+                        <span>{Math.min(100, dailyGoalProgress)}%</span>
+                    </div>
+                    <div class="track">
+                        <div class="fill" style={`width: ${Math.min(100, dailyGoalProgress)}%`}></div>
+                    </div>
+                    <p class="subtle">Goal: {dailyGoalTests} completed tests. Current: {testsTaken}.</p>
+
+                    <h3 style="margin-top: 1rem;">Account</h3>
+                    <div class="account">
+                        <p><strong>Name:</strong> {user.username}</p>
+                        <p><strong>Email:</strong> {user.email}</p>
+                        <p><strong>User ID:</strong> {user.id}</p>
+                    </div>
+                </aside>
+            </section>
+        {:else}
+            <section class="panel section">
+                <h3>Dashboard unavailable</h3>
+                <p class="subtle">Your session exists, but we could not load your profile data right now.</p>
+            </section>
+        {/if}
     </div>
-
-    {#if !isLoading && user}
-        <div class="stats">
-            <div class="stat-box">
-                <div class="stat-value">0</div>
-                <div class="stat-label">Tests Taken</div>
-            </div>
-            <div class="stat-box">
-                <div class="stat-value">0</div>
-                <div class="stat-label">Points Earned</div>
-            </div>
-            <div class="stat-box">
-                <div class="stat-value">0%</div>
-                <div class="stat-label">Average Score</div>
-            </div>
-            <div class="stat-box">
-                <div class="stat-value">0</div>
-                <div class="stat-label">Days Streak</div>
-            </div>
-        </div>
-
-        <div class="content">
-            <div class="card">
-                <h3>Start a Test</h3>
-                <p>Choose from our curated collection of entrance exams and practice tests to improve your preparation.</p>
-                <Button size="sm">Browse Tests</Button>
-            </div>
-
-            <div class="card">
-                <h3>My Progress</h3>
-                <p>Track your performance across different subjects and topics. See your improvement over time.</p>
-                <Button size="sm" variant="secondary">View Progress</Button>
-            </div>
-
-            <div class="card">
-                <h3>Study Materials</h3>
-                <p>Access comprehensive study notes, formulas, and tips curated by top students.</p>
-                <Button size="sm">View Materials</Button>
-            </div>
-
-            <div class="card">
-                <h3>Leaderboard</h3>
-                <p>See how you rank among other students. Compete and motivate each other to excel.</p>
-                <Button size="sm" variant="secondary">View Rankings</Button>
-            </div>
-
-            <div class="card">
-                <h3>My Tests</h3>
-                <p>Revisit your past tests, check answers, and review concepts you might need to strengthen.</p>
-                <Button size="sm">View History</Button>
-            </div>
-
-            <div class="card">
-                <h3>Settings</h3>
-                <p>Manage your profile, preferences, and notification settings to customize your experience.</p>
-                <Button size="sm" variant="secondary">Go to Settings</Button>
-            </div>
-        </div>
-    {:else if isLoading}
-        <div class="loading">Loading your dashboard...</div>
-    {:else}
-        <div class="loading">Please log in to access the dashboard</div>
-    {/if}
 </div>
