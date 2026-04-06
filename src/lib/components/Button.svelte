@@ -4,13 +4,14 @@
     size?: 'sm' | 'md' | 'lg';
     disabled?: boolean;
     onclick?: (e: MouseEvent) => void;
+    children?: import('svelte').Snippet;
   }
 
-  let { variant = 'primary', size = 'md', disabled = false, onclick, class: className = '' }: Props & { class?: string } = $props();
+  let { variant = 'primary', size = 'md', disabled = false, onclick, class: className = '', children }: Props & { class?: string } = $props();
 </script>
 
 <button class={`btn btn-${variant} btn-${size} ${className}`} {disabled} {onclick}>
-  <slot />
+  {@render children?.()}
 </button>
 
 <style>

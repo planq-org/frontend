@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Outfit:wght@500;600;700&display=swap');
 
 :root {
   --bg-primary: #121418;
@@ -24,10 +24,10 @@
   --spacing-xl: 2rem;
   --spacing-xxl: 3rem;
 
-  --radius-sm: 0.25rem;
-  --radius-md: 0.5rem;
-  --radius-lg: 1rem;
-  --radius-pill: 9999px;
+  --radius-sm: 0.2rem;
+  --radius-md: 0.4rem;
+  --radius-lg: 0.72rem;
+  --radius-pill: 0.85rem;
 
   --shadow-sm: 0 2px 4px var(--shadow-color);
   --shadow-md: 0 4px 8px var(--shadow-color);
@@ -51,7 +51,7 @@ html {
 }
 
 body {
-  font-family: "Inter", sans-serif;
+  font-family: "Plus Jakarta Sans", sans-serif;
   font-optical-sizing: auto;
   font-weight: 400;
   font-style: normal;
@@ -63,6 +63,14 @@ body {
     radial-gradient(circle at 20% 20%, rgba(107, 138, 253, 0.02), transparent 25%),
     radial-gradient(circle at 80% 80%, rgba(90, 106, 207, 0.02), transparent 25%);
   background-attachment: fixed;
+  padding-top: 0.1px;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: "Outfit", "Plus Jakarta Sans", sans-serif;
 }
 
 .container {
